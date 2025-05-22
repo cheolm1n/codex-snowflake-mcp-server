@@ -15,6 +15,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "cryptography>=41.0.0",
     "mcp",
+    "fastmcp",
     "anyio>=3.7.1",
     "sqlglot>=11.5.5"
 ]

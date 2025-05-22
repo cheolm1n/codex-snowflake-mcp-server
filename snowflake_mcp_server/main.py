@@ -11,14 +11,12 @@ Claude with secure, controlled access to Snowflake data for analysis and reporti
 """
 
 import os
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
-import anyio
 import mcp.types as mcp_types
 import sqlglot
 from dotenv import load_dotenv
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
+from fastmcp import FastMCP
 from sqlglot.errors import ParseError
 
 from snowflake_mcp_server.utils.snowflake_conn import (
@@ -65,23 +63,12 @@ def init_connection_manager() -> None:
     connection_manager.initialize(config)
 
 
-# Define MCP server
-def create_server() -> Server:
-    """Create and configure the MCP server."""
-    # Initialize the connection manager before setting up the server
-    init_connection_manager()
-
-    server: Server = Server(
-        name="snowflake-mcp-server",
-        version="0.2.0",
-        instructions="MCP server for performing read-only operations against "
-        "Snowflake.",
-    )
-
-    return server
-
+# Initialize connection manager and FastMCP instance before defining tools
+init_connection_manager()
+mcp = FastMCP("snowflake-mcp-server")
 
 # Snowflake query handler functions
+@mcp.tool()
 async def handle_list_databases(
     name: str, arguments: Optional[Dict[str, Any]] = None
 ) -> Sequence[
@@ -120,6 +107,7 @@ async def handle_list_databases(
         ]
 
 
+@mcp.tool()
 async def handle_list_views(
     name: str, arguments: Optional[Dict[str, Any]] = None
 ) -> Sequence[
@@ -194,6 +182,7 @@ async def handle_list_views(
         ]
 
 
+@mcp.tool()
 async def handle_describe_view(
     name: str, arguments: Optional[Dict[str, Any]] = None
 ) -> Sequence[
@@ -280,6 +269,7 @@ async def handle_describe_view(
         ]
 
 
+@mcp.tool()
 async def handle_query_view(
     name: str, arguments: Optional[Dict[str, Any]] = None
 ) -> Sequence[
@@ -375,6 +365,7 @@ async def handle_query_view(
         ]
 
 
+@mcp.tool()
 async def handle_execute_query(
     name: str, arguments: Optional[Dict[str, Any]] = None
 ) -> Sequence[
@@ -511,142 +502,4 @@ async def handle_execute_query(
 # Function to run the server with stdio interface
 def run_stdio_server() -> None:
     """Run the MCP server using stdin/stdout for communication."""
-
-    async def run() -> None:
-        server = create_server()
-
-        # Register all the Snowflake tools
-        @server.call_tool()
-        async def call_tool(
-            name: str, arguments: Optional[Dict[str, Any]] = None
-        ) -> Sequence[
-            Union[
-                mcp_types.TextContent,
-                mcp_types.ImageContent,
-                mcp_types.EmbeddedResource,
-            ]
-        ]:
-            if name == "list_databases":
-                return await handle_list_databases(name, arguments)
-            elif name == "list_views":
-                return await handle_list_views(name, arguments)
-            elif name == "describe_view":
-                return await handle_describe_view(name, arguments)
-            elif name == "query_view":
-                return await handle_query_view(name, arguments)
-            elif name == "execute_query":
-                return await handle_execute_query(name, arguments)
-            else:
-                return [
-                    mcp_types.TextContent(type="text", text=f"Unknown tool: {name}")
-                ]
-
-        # Create tool definitions for all Snowflake tools
-        @server.list_tools()
-        async def list_tools() -> List[mcp_types.Tool]:
-            return [
-                mcp_types.Tool(
-                    name="list_databases",
-                    description="List all accessible Snowflake databases",
-                    inputSchema={"type": "object", "properties": {}, "required": []},
-                ),
-                mcp_types.Tool(
-                    name="list_views",
-                    description="List all views in a specified database and schema",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "database": {
-                                "type": "string",
-                                "description": "The database name (required)",
-                            },
-                            "schema": {
-                                "type": "string",
-                                "description": "The schema name (optional, will use current schema if not provided)",
-                            },
-                        },
-                        "required": ["database"],
-                    },
-                ),
-                mcp_types.Tool(
-                    name="describe_view",
-                    description="Get detailed information about a specific view including columns and SQL definition",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "database": {
-                                "type": "string",
-                                "description": "The database name (required)",
-                            },
-                            "schema": {
-                                "type": "string",
-                                "description": "The schema name (optional, will use current schema if not provided)",
-                            },
-                            "view_name": {
-                                "type": "string",
-                                "description": "The name of the view to describe (required)",
-                            },
-                        },
-                        "required": ["database", "view_name"],
-                    },
-                ),
-                mcp_types.Tool(
-                    name="query_view",
-                    description="Query data from a view with an optional row limit",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "database": {
-                                "type": "string",
-                                "description": "The database name (required)",
-                            },
-                            "schema": {
-                                "type": "string",
-                                "description": "The schema name (optional, will use current schema if not provided)",
-                            },
-                            "view_name": {
-                                "type": "string",
-                                "description": "The name of the view to query (required)",
-                            },
-                            "limit": {
-                                "type": "integer",
-                                "description": "Maximum number of rows to return (default: 10)",
-                            },
-                        },
-                        "required": ["database", "view_name"],
-                    },
-                ),
-                mcp_types.Tool(
-                    name="execute_query",
-                    description="Execute a read-only SQL query against Snowflake",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "The SQL query to execute (supports SELECT, SHOW, DESCRIBE, EXPLAIN, and WITH statements)",
-                            },
-                            "database": {
-                                "type": "string",
-                                "description": "The database to use (optional)",
-                            },
-                            "schema": {
-                                "type": "string",
-                                "description": "The schema to use (optional)",
-                            },
-                            "limit": {
-                                "type": "integer",
-                                "description": "Maximum number of rows to return (default: 100)",
-                            },
-                        },
-                        "required": ["query"],
-                    },
-                ),
-            ]
-
-        init_options = server.create_initialization_options()
-
-        async with stdio_server() as (read_stream, write_stream):
-            await server.run(read_stream, write_stream, init_options)
-
-    anyio.run(run)
+    mcp.run()
