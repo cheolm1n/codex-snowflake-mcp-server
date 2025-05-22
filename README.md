@@ -2,6 +2,8 @@
 
 A Model Context Protocol (MCP) server for performing read-only operations against Snowflake databases. This tool enables Claude to securely query Snowflake data without modifying any information.
 
+This server uses **FastMCP** for lightweight tool registration and execution (이 서버는 빠른 MCP 도구 등록과 실행을 위해 **FastMCP**를 사용합니다).
+
 ## Features
 
 - Flexible authentication to Snowflake using either:
@@ -12,6 +14,7 @@ A Model Context Protocol (MCP) server for performing read-only operations agains
 - Support for multiple SQL statement types (SELECT, SHOW, DESCRIBE, EXPLAIN, WITH)
 - MCP-compatible handlers for querying Snowflake data
 - Read-only operations with security checks to prevent data modification
+- Uses **FastMCP** for lightweight tool registration and execution (빠른 MCP 도구 등록과 실행을 위해 FastMCP 사용)
 - Support for Python 3.12+
 - Stdio-based MCP server for easy integration with Claude Desktop
 
@@ -200,5 +203,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 This project uses:
 - [Snowflake Connector Python](https://docs.snowflake.com/en/developer-guide/python-connector/python-connector) for connecting to Snowflake
 - [MCP (Model Context Protocol)](https://github.com/anthropics/anthropic-cookbook/tree/main/mcp) for interacting with Claude
+- [FastMCP](https://github.com/anthropics/anthropic-cookbook/tree/main/mcp/fastmcp) for lightweight tool registration and server execution
 - [Pydantic](https://docs.pydantic.dev/) for data validation
 - [python-dotenv](https://github.com/theskumar/python-dotenv) for environment variable management
